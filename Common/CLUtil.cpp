@@ -111,7 +111,7 @@ double CLUtil::ProfileKernel(cl_command_queue CommandQueue, cl_kernel Kernel, cl
     clErr = clFinish(CommandQueue);
     timer.Start();
 
-    for (unsigned int i = 0; i < NIterations; i++)
+    for (int i = 0; i < NIterations; i++)
     {
         clErr |= clEnqueueNDRangeKernel(CommandQueue, Kernel,
             Dimensions, NULL, pGlobalWorkSize, pLocalWorkSize,

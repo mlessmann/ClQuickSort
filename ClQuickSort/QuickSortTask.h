@@ -22,11 +22,10 @@
 
 #include "../Common/IComputeTask.h"
 
-//! A1/T2: Matrix rotation
 class QuickSortTask : public IComputeTask
 {
 public:
-	QuickSortTask(size_t SizeX, size_t SizeY);
+	QuickSortTask(size_t size);
 	virtual ~QuickSortTask();
 
 	// IComputeTask
@@ -44,23 +43,18 @@ protected:
 	//NOTE: we have two memory address spaces, so we mark pointers with a prefix
 	//to avoid confusions: 'h' - host, 'd' - device
 
-	unsigned int		m_SizeX;
-	unsigned int		m_SizeY;
+	unsigned int		m_Size;
 
-	//float data on the CPU
-	//M: original matrix, MR: rotated matrix
-	float				*m_hM, *m_hMR;
+	int				    *m_hInput, *m_hOutput;
 
 	//pointers on the GPU
-	//(result buffers for both kernels)
-	cl_mem				m_dM, m_dMR;
+	cl_mem				m_dInput, m_dOutput;
 	//(..and a pointer to read back the result)
-	float				*m_hGPUResultNaive, *m_hGPUResultOpt;
+	int 				*m_hGPUResult;
 
 	//OpenCL program and kernels
 	cl_program			m_Program;
-	cl_kernel			m_NaiveKernel;
-	cl_kernel			m_OptimizedKernel;
+	cl_kernel			m_Kernel;
 };
 
 #endif // _CMATRIX_ROTATE_TASK_H
