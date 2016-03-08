@@ -33,6 +33,8 @@ public:
 	
 	virtual void ReleaseResources();
 
+	void Recurse(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3], size_t startIndex, size_t count);
+
 	virtual void ComputeGPU(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3]);
 
 	virtual void ComputeCPU();
@@ -48,13 +50,15 @@ protected:
 	int				    *m_hInput, *m_hOutput;
 
 	//pointers on the GPU
-	cl_mem				m_dInput, m_dOutput;
+	cl_mem				m_dInput, m_dOutput, m_dLeftCount, m_dRightCount;
 	//(..and a pointer to read back the result)
 	int 				*m_hGPUResult;
 
 	//OpenCL program and kernels
 	cl_program			m_Program;
-	cl_kernel			m_Kernel;
+	cl_kernel			m_KernelScan;
+	cl_kernel			m_Kernel1;
+	cl_kernel			m_Kernel2;
 };
 
 #endif // _CMATRIX_ROTATE_TASK_H

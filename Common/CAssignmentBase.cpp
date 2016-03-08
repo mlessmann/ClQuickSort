@@ -97,7 +97,7 @@ bool CAssignmentBase::InitCLContext()
 		return false;
 	}
 	// Choosing the second available device.
-    m_CLDevice = deviceIds[countAllDevices - 1];
+    m_CLDevice = deviceIds[0];
 	clGetDeviceInfo(m_CLDevice, CL_DEVICE_PLATFORM, sizeof(cl_platform_id), &m_CLPlatform, NULL);
 
 	// Printing platform and device data.
