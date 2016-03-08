@@ -54,17 +54,15 @@ __kernel void CountElements(__global const int* input,
 __kernel void Scan_Naive(const __global int* inArray, __global int* outArray, int N, int offset)
 {
 	int GID = get_global_id(0);
-	if (GID >= N)
-		return;
-
-
-	if (GID < offset) {
-		outArray[GID] = inArray[GID];
+	if (GID < N)
+	{
+		if (GID < offset) {
+			outArray[GID] = inArray[GID];
+		}
+		else {
+			outArray[GID] = inArray[GID] + inArray[GID - offset];
+		}
 	}
-	else {
-		outArray[GID] = inArray[GID] + inArray[GID - offset];
-	}
-	//printf("%i: %i\n", GID, outArray[GID]);
 }
 
 __kernel void DistributeElements(__global const int* input, __global int* output,
@@ -86,7 +84,7 @@ __kernel void DistributeElements(__global const int* input, __global int* output
 	{
 		leftIndex = 0;
 		rightIndex = 0;
-		printf("Pivot: %i\n", input[pivotIndexIn]);
+		//printf("Pivot: %i\n", input[pivotIndexIn]);
 	}
 
 	barrier(CLK_LOCAL_MEM_FENCE);

@@ -35,7 +35,7 @@ public:
 
 	void CountElements(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3], size_t startIndex, size_t count, size_t pivotIndex);
 
-	void Scan(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3], size_t count, cl_mem & input);
+	void Scan(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3], size_t count, cl_mem input, int groupCount);
 
 	void DistributeElements(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3], size_t startIndex, size_t count, size_t pivotIndex);
 
