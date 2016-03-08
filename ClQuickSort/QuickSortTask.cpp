@@ -36,7 +36,7 @@ bool QuickSortTask::InitResources(cl_device_id Device, cl_context Context)
     //fill the array with random ints
     for(unsigned int i = 0; i < m_Size; i++)
     {
-		m_hInput[i] = rand();
+		m_hInput[i] = rand() & 15;
     }
 	memcpy(m_hOutput, m_hInput, m_Size * sizeof(int));
 
@@ -99,6 +99,8 @@ void QuickSortTask::Recurse(cl_context Context, cl_command_queue CommandQueue, s
 
 	clErr = clEnqueueNDRangeKernel(CommandQueue, m_Kernel1, 1, NULL, &globalWorkSize, LocalWorkSize, 0, NULL, NULL);
 	V_RETURN_CL(clErr, "Failed to start Kernel1.");
+
+
 
 	//start kernel scan
 	//start kernel 2

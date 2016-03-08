@@ -33,9 +33,11 @@ __kernel void QuickSort1(__global const int* input, __global int* output,
 
 	barrier(CLK_LOCAL_MEM_FENCE);
 
-	if (input[pivotIndexIn] < input[startIndex + gid])
+	int pivot = input[pivotIndexIn];
+	int element = input[startIndex + gid];
+	if (element < pivot)
 		atomic_inc(&localLeftCount);
-	else
+	else if(element > pivot)
 		atomic_inc(&localRightCount);
 
 	barrier(CLK_LOCAL_MEM_FENCE);
