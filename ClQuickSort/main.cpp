@@ -15,6 +15,6 @@ int main(int argc, char** argv)
 
 	quickSort.EnterMainLoop(argc, argv);
 
-	cout << "Press 'Enter'..." << endl;
-	cin.get();
+	//cout << "Press 'Enter'..." << endl;
+	//cin.get();
 }

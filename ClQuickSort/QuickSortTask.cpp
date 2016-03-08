@@ -45,6 +45,7 @@ bool QuickSortTask::InitResources(cl_device_id Device, cl_context Context)
     {
 		m_hInput[i] = rand();
     }
+	//memset(m_hInput, 0, m_Size * sizeof(int));
 	memcpy(m_hOutput, m_hInput, m_Size * sizeof(int));
 
     cl_int clError;
@@ -160,14 +161,13 @@ void QuickSortTask::DistributeElements(cl_context Context, cl_command_queue Comm
 void QuickSortTask::Recurse(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3],
 	size_t startIndex, size_t count)
 {
-	if (count <= 1024)
+	if (count <= 1)
 	{
 		return;
 	}
 
 	int pivotIndex = startIndex + (rand() % count);
 	size_t groupCount = GetGroupCount(count, LocalWorkSize[0]);
-	//cout << "Group size: " << groupCount << endl;
 
 	//calculate leftCount/rightCount per block
 	CountElements(Context, CommandQueue, LocalWorkSize, startIndex, count, pivotIndex);
@@ -176,19 +176,16 @@ void QuickSortTask::Recurse(cl_context Context, cl_command_queue CommandQueue, s
 	Scan(Context, CommandQueue, LocalWorkSize, count, m_dRightCount, groupCount);
 
 	int leftSize, rightSize;
-	V_RETURN_CL(clEnqueueReadBuffer(CommandQueue, m_dLeftCount, CL_TRUE, (groupCount - 1) * sizeof(cl_int),
-		sizeof(cl_int), &leftSize, 0, NULL, NULL), "1Error reading data from device!");
-	V_RETURN_CL(clEnqueueReadBuffer(CommandQueue, m_dRightCount, CL_TRUE, (groupCount - 1) * sizeof(cl_int),
-		sizeof(cl_int), &rightSize, 0, NULL, NULL), "2Error reading data from device!");
+	V_RETURN_CL(clEnqueueReadBuffer(CommandQueue, m_dLeftCount, CL_FALSE, (groupCount - 1) * sizeof(cl_int),
+		sizeof(cl_int), &leftSize, 0, NULL, NULL), "Error reading data from device!");
+	V_RETURN_CL(clEnqueueReadBuffer(CommandQueue, m_dRightCount, CL_FALSE, (groupCount - 1) * sizeof(cl_int),
+		sizeof(cl_int), &rightSize, 0, NULL, NULL), "Error reading data from device!");
 
 	//distribute elements around the pivot in the output buffer
 	DistributeElements(Context, CommandQueue, LocalWorkSize, startIndex, count, pivotIndex);
 
 	V_RETURN_CL(clEnqueueCopyBuffer(CommandQueue, m_dOutput, m_dInput, startIndex * sizeof(cl_int), startIndex * sizeof(cl_int),
 		count * sizeof(cl_int), 0, NULL, NULL), "Error copying buffer.");
-
-	V_RETURN_CL(clEnqueueReadBuffer(CommandQueue, m_dOutput, CL_TRUE, 0, m_Size * sizeof(cl_int), m_hGPUResult, 0, NULL, NULL),
-		"Error reading data from device!");
 
 	Recurse(Context, CommandQueue, LocalWorkSize, startIndex, leftSize);
 	Recurse(Context, CommandQueue, LocalWorkSize, startIndex + count - rightSize, rightSize);

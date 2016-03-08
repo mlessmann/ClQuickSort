@@ -47,7 +47,6 @@ __kernel void CountElements(__global const int* input,
 	{
 		leftCount[grid] = localLeftCount;
 		rightCount[grid] = localRightCount;
-		//printf("Grid %i: %i, %i\n", grid, localLeftCount, localRightCount);
 	}
 }
 
@@ -84,37 +83,36 @@ __kernel void DistributeElements(__global const int* input, __global int* output
 	{
 		leftIndex = 0;
 		rightIndex = 0;
-		//printf("Pivot: %i\n", input[pivotIndexIn]);
 	}
 
 	barrier(CLK_LOCAL_MEM_FENCE);
 
 	int pivot = input[pivotIndexIn];
 	int element = input[startIndex + gid];
+	int globalLeftCount = leftCountPrefix[nGroups - 1];
+	int globalRightCount = rightCountPrefix[nGroups - 1];
+	int globalPivotCount = count - globalRightCount - globalLeftCount;
+	int globalLeftIndex = grid == 0 ? 0 : leftCountPrefix[grid - 1];
+	int globalRightIndex = count - globalRightCount + (grid == 0 ? 0 : rightCountPrefix[grid - 1]);
 	
 	int newElementIndex = -1;
 
 	if (element < pivot)
 	{
-		newElementIndex = atomic_inc(&leftIndex);
-		newElementIndex += grid == 0 ? 0 : leftCountPrefix[grid - 1];
+		newElementIndex = globalLeftIndex + atomic_inc(&leftIndex);
 	}
 	else if (element > pivot)
 	{
-		newElementIndex = atomic_inc(&rightIndex);
-		newElementIndex += grid == 0 ? 0 : rightCountPrefix[grid - 1];
-		newElementIndex += count - rightCountPrefix[nGroups - 1];
+		newElementIndex = globalRightIndex + atomic_inc(&rightIndex);
 	}
 
 	if (newElementIndex >= 0) 
 	{
 		output[startIndex + newElementIndex] = element;
-		//printf("Gid %i reads from %i value %i, writes to %i\n", gid, startIndex + gid, element, startIndex + newElementIndex);
 	}
 
-	int pivotCount = count - rightCountPrefix[nGroups - 1] - leftCountPrefix[nGroups - 1];
-	if (gid < pivotCount) 
+	if (gid < globalPivotCount) 
 	{
-		output[startIndex + leftCountPrefix[nGroups - 1] + gid] = pivot;
+		output[startIndex + globalLeftCount + gid] = pivot;
 	}
 }
