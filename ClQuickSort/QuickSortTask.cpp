@@ -26,6 +26,11 @@ QuickSortTask::~QuickSortTask()
     ReleaseResources();
 }
 
+size_t GetGroupCount(size_t size, size_t localWorkSize)
+{
+	return ceil((double)size / (double)localWorkSize);
+}
+
 bool QuickSortTask::InitResources(cl_device_id Device, cl_context Context)
 {
     //CPU resources
@@ -58,8 +63,10 @@ bool QuickSortTask::InitResources(cl_device_id Device, cl_context Context)
     if (m_Program == nullptr)
         return false;
 
-    m_Kernel1 = clCreateKernel(m_Program, "QuickSort1", &clError);
-    V_RETURN_FALSE_CL(clError, "Failed to create kernel: QuickSort");
+	m_Kernel1 = clCreateKernel(m_Program, "QuickSort1", &clError);
+	V_RETURN_FALSE_CL(clError, "Failed to create kernel: QuickSort");
+	m_KernelScan = clCreateKernel(m_Program, "Scan_Naive", &clError);
+	V_RETURN_FALSE_CL(clError, "Failed to create kernel: Scan_Naive");
 
     return true;
 }
@@ -78,6 +85,33 @@ void QuickSortTask::ReleaseResources()
 	SAFE_RELEASE_KERNEL(m_Kernel1);
 	SAFE_RELEASE_KERNEL(m_Kernel2);
     SAFE_RELEASE_PROGRAM(m_Program);
+}
+
+void QuickSortTask::Scan(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3],
+	size_t count, cl_mem &input)
+{
+	cl_int clErr;
+	size_t groupCount = GetGroupCount(count, LocalWorkSize[0]);
+
+	cl_mem output = clCreateBuffer(Context, CL_MEM_READ_WRITE, sizeof(int) * groupCount, NULL, &clErr);
+	V_RETURN_CL(clErr, "Buffer allocation failed.");
+
+	for (unsigned int offset = 1; offset <= groupCount; offset *= 2)
+	{
+		size_t globalWorkSize = CLUtil::GetGlobalWorkSize(groupCount, LocalWorkSize[0]);
+
+		clErr = clSetKernelArg(m_KernelScan, 0, sizeof(cl_mem), (void*)&input);
+		clErr |= clSetKernelArg(m_KernelScan, 1, sizeof(cl_mem), (void*)&output);
+		clErr |= clSetKernelArg(m_KernelScan, 2, sizeof(cl_int), (void*)&groupCount);
+		clErr |= clSetKernelArg(m_KernelScan, 3, sizeof(cl_int), (void*)&offset);
+		V_RETURN_CL(clErr, "Failed to set kernel args: KernelScan");
+
+		clErr = clEnqueueNDRangeKernel(CommandQueue, m_KernelScan, 1, NULL, &globalWorkSize, LocalWorkSize, 0, NULL, NULL);
+		V_RETURN_CL(clErr, "Failed to start KernelScan.");
+		swap(input, output);
+	}
+
+	SAFE_RELEASE_MEMOBJECT(output);
 }
 
 void QuickSortTask::Recurse(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3],
@@ -100,9 +134,17 @@ void QuickSortTask::Recurse(cl_context Context, cl_command_queue CommandQueue, s
 	clErr = clEnqueueNDRangeKernel(CommandQueue, m_Kernel1, 1, NULL, &globalWorkSize, LocalWorkSize, 0, NULL, NULL);
 	V_RETURN_CL(clErr, "Failed to start Kernel1.");
 
+	Scan(Context, CommandQueue, LocalWorkSize, count, m_dLeftCount);
 
+	size_t groupCount = GetGroupCount(count, LocalWorkSize[0]);
+	int* test = new int[groupCount];
+	V_RETURN_CL(clEnqueueReadBuffer(CommandQueue, m_dLeftCount, CL_TRUE, 0, groupCount * sizeof(cl_int), test, 0, NULL, NULL),
+		"Error reading data from device!");
+	for (int j = 0; j < groupCount; j++) {
+		cout << test[j] << " ";
+	}
+	cout << endl;
 
-	//start kernel scan
 	//start kernel 2
 	//read pivot index
 	swap(m_dInput, m_dOutput);
@@ -112,7 +154,7 @@ void QuickSortTask::Recurse(cl_context Context, cl_command_queue CommandQueue, s
 void QuickSortTask::ComputeGPU(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3])
 {
 	cl_int clErr;
-	size_t groupCount = ceil((double)m_Size / (double)LocalWorkSize[0]);
+	size_t groupCount = GetGroupCount(m_Size, LocalWorkSize[0]);
 	m_dLeftCount = clCreateBuffer(Context, CL_MEM_READ_WRITE, sizeof(int) * groupCount, NULL, &clErr);
 	V_RETURN_CL(clErr, "Buffer allocation failed.");
 	m_dRightCount = clCreateBuffer(Context, CL_MEM_READ_WRITE, sizeof(int) * groupCount, NULL, &clErr);

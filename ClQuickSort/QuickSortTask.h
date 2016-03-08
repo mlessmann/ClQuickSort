@@ -33,6 +33,8 @@ public:
 	
 	virtual void ReleaseResources();
 
+	void Scan(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3], size_t count, cl_mem & input);
+
 	void Recurse(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3], size_t startIndex, size_t count);
 
 	virtual void ComputeGPU(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3]);

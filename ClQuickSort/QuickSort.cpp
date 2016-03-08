@@ -17,7 +17,7 @@ using namespace std;
 bool QuickSort::DoCompute()
 {
     size_t localWorkSize[3] = { 256, 1, 1 };
-	QuickSortTask task(1000);
+	QuickSortTask task(1000#);
     RunComputeTask(task, localWorkSize);
 
 	return true;
