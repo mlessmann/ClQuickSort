@@ -6,6 +6,7 @@ GPU Computing / GPGPU Praktikum source code.
 #include "QuickSortTask.h"
 
 #include "../Common/CLUtil.h"
+#include "../Common/CTimer.h"
 
 //#include <string.h>
 
@@ -17,7 +18,8 @@ using namespace std;
 QuickSortTask::QuickSortTask(size_t size)
     :m_Size(size), m_hInput(NULL), m_hOutput(NULL), m_dInput(NULL),
     m_dOutput(NULL), m_hGPUResult(NULL), m_Program(NULL), m_KernelScan(NULL),
-	m_KernelCountElements(NULL), m_KernelDistributeElements(NULL), m_dLeftCount(NULL), m_dRightCount(NULL)
+	m_KernelCountElements(NULL), m_KernelDistributeElements(NULL), m_dLeftCount(NULL),
+	m_dRightCount(NULL), m_dScanPing(NULL), m_dScanPong(NULL)
 {
 }
 
@@ -82,6 +84,10 @@ void QuickSortTask::ReleaseResources()
 
     SAFE_RELEASE_MEMOBJECT(m_dInput);
     SAFE_RELEASE_MEMOBJECT(m_dOutput);
+	SAFE_RELEASE_MEMOBJECT(m_dLeftCount);
+	SAFE_RELEASE_MEMOBJECT(m_dRightCount);
+	SAFE_RELEASE_MEMOBJECT(m_dScanPing);
+	SAFE_RELEASE_MEMOBJECT(m_dScanPong);
 
 	SAFE_RELEASE_KERNEL(m_KernelScan);
 	SAFE_RELEASE_KERNEL(m_KernelCountElements);
@@ -112,31 +118,24 @@ void QuickSortTask::Scan(cl_context Context, cl_command_queue CommandQueue, size
 {
 	cl_int clErr;
 
-	cl_mem ping = clCreateBuffer(Context, CL_MEM_READ_WRITE, sizeof(int) * groupCount, NULL, &clErr);
-	V_RETURN_CL(clErr, "Buffer allocation failed.");
-	cl_mem pong = clCreateBuffer(Context, CL_MEM_READ_WRITE, sizeof(int) * groupCount, NULL, &clErr);
-	V_RETURN_CL(clErr, "Buffer allocation failed.");
-	clEnqueueCopyBuffer(CommandQueue, input, ping, 0, 0, sizeof(cl_int) * groupCount, 0, NULL, NULL);
+	clEnqueueCopyBuffer(CommandQueue, input, m_dScanPing, 0, 0, sizeof(cl_int) * groupCount, 0, NULL, NULL);
 
 	for (unsigned int offset = 1; offset <= groupCount; offset *= 2)
 	{
 		size_t globalWorkSize = CLUtil::GetGlobalWorkSize(groupCount, LocalWorkSize[0]);
 
-		clErr = clSetKernelArg(m_KernelScan, 0, sizeof(cl_mem), (void*)&ping);
-		clErr |= clSetKernelArg(m_KernelScan, 1, sizeof(cl_mem), (void*)&pong);
+		clErr = clSetKernelArg(m_KernelScan, 0, sizeof(cl_mem), (void*)&m_dScanPing);
+		clErr |= clSetKernelArg(m_KernelScan, 1, sizeof(cl_mem), (void*)&m_dScanPong);
 		clErr |= clSetKernelArg(m_KernelScan, 2, sizeof(cl_int), (void*)&groupCount);
 		clErr |= clSetKernelArg(m_KernelScan, 3, sizeof(cl_int), (void*)&offset);
 		V_RETURN_CL(clErr, "Failed to set kernel args: KernelScan");
 
 		clErr = clEnqueueNDRangeKernel(CommandQueue, m_KernelScan, 1, NULL, &globalWorkSize, LocalWorkSize, 0, NULL, NULL);
 		V_RETURN_CL(clErr, "Failed to start KernelScan.");
-		swap(ping, pong);
+		swap(m_dScanPing, m_dScanPong);
 	}
 
-	clEnqueueCopyBuffer(CommandQueue, ping, input, 0, 0, sizeof(cl_int) * groupCount, 0, NULL, NULL);
-
-	SAFE_RELEASE_MEMOBJECT(ping);
-	SAFE_RELEASE_MEMOBJECT(pong);
+	clEnqueueCopyBuffer(CommandQueue, m_dScanPing, input, 0, 0, sizeof(cl_int) * groupCount, 0, NULL, NULL);
 }
 
 void QuickSortTask::DistributeElements(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3],
@@ -161,9 +160,8 @@ void QuickSortTask::DistributeElements(cl_context Context, cl_command_queue Comm
 void QuickSortTask::Recurse(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3],
 	size_t startIndex, size_t count)
 {
-	if (count <= 1)
+	if (count <= 1024)
 	{
-		//cout << "Cancel, startIndex: " << startIndex << ", count: " << count << endl;
 		return;
 	}
 
@@ -173,12 +171,9 @@ void QuickSortTask::Recurse(cl_context Context, cl_command_queue CommandQueue, s
 
 	//calculate leftCount/rightCount per block
 	CountElements(Context, CommandQueue, LocalWorkSize, startIndex, count, pivotIndex);
-	V_RETURN_CL(clFinish(CommandQueue), "1");
 	//calculate inclusive prefix sums of leftCount/rightCount (in place)
 	Scan(Context, CommandQueue, LocalWorkSize, count, m_dLeftCount, groupCount);
-	V_RETURN_CL(clFinish(CommandQueue), "2");
 	Scan(Context, CommandQueue, LocalWorkSize, count, m_dRightCount, groupCount);
-	V_RETURN_CL(clFinish(CommandQueue), "3");
 
 	int leftSize, rightSize;
 	V_RETURN_CL(clEnqueueReadBuffer(CommandQueue, m_dLeftCount, CL_TRUE, (groupCount - 1) * sizeof(cl_int),
@@ -186,27 +181,14 @@ void QuickSortTask::Recurse(cl_context Context, cl_command_queue CommandQueue, s
 	V_RETURN_CL(clEnqueueReadBuffer(CommandQueue, m_dRightCount, CL_TRUE, (groupCount - 1) * sizeof(cl_int),
 		sizeof(cl_int), &rightSize, 0, NULL, NULL), "2Error reading data from device!");
 
-	/*for (int i = 0; i < groupCount; i++)
-	{
-		cout << leftSize[i] << " ";
-	}
-	cout << endl;
-	for (int i = 0; i < groupCount; i++)
-	{
-		cout << rightSize[i] << " ";
-	}
-	cout << endl;*/
-
 	//distribute elements around the pivot in the output buffer
 	DistributeElements(Context, CommandQueue, LocalWorkSize, startIndex, count, pivotIndex);
-	V_RETURN_CL(clFinish(CommandQueue), "4");
 
 	V_RETURN_CL(clEnqueueCopyBuffer(CommandQueue, m_dOutput, m_dInput, startIndex * sizeof(cl_int), startIndex * sizeof(cl_int),
 		count * sizeof(cl_int), 0, NULL, NULL), "Error copying buffer.");
 
 	V_RETURN_CL(clEnqueueReadBuffer(CommandQueue, m_dOutput, CL_TRUE, 0, m_Size * sizeof(cl_int), m_hGPUResult, 0, NULL, NULL),
 		"Error reading data from device!");
-	//cout << "PivotIndex: " << startIndex + leftSize << ", Pivot: " << m_hGPUResult[startIndex + leftSize] << ", StartIndex: " << startIndex << ", count: " << count << endl;
 
 	Recurse(Context, CommandQueue, LocalWorkSize, startIndex, leftSize);
 	Recurse(Context, CommandQueue, LocalWorkSize, startIndex + count - rightSize, rightSize);
@@ -214,11 +196,20 @@ void QuickSortTask::Recurse(cl_context Context, cl_command_queue CommandQueue, s
 
 void QuickSortTask::ComputeGPU(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3])
 {
+	CTimer timer;
 	cl_int clErr;
+
+	timer.Start();
+
 	size_t groupCount = GetGroupCount(m_Size, LocalWorkSize[0]);
 	m_dLeftCount = clCreateBuffer(Context, CL_MEM_READ_WRITE, sizeof(int) * groupCount, NULL, &clErr);
 	V_RETURN_CL(clErr, "Buffer allocation failed.");
 	m_dRightCount = clCreateBuffer(Context, CL_MEM_READ_WRITE, sizeof(int) * groupCount, NULL, &clErr);
+	V_RETURN_CL(clErr, "Buffer allocation failed.");
+	
+	m_dScanPing = clCreateBuffer(Context, CL_MEM_READ_WRITE, sizeof(int) * groupCount, NULL, &clErr);
+	V_RETURN_CL(clErr, "Buffer allocation failed.");
+	m_dScanPong = clCreateBuffer(Context, CL_MEM_READ_WRITE, sizeof(int) * groupCount, NULL, &clErr);
 	V_RETURN_CL(clErr, "Buffer allocation failed.");
 
 	V_RETURN_CL(clEnqueueWriteBuffer(CommandQueue, m_dInput, CL_FALSE, 0, m_Size * sizeof(cl_int), m_hInput, 0, NULL, NULL),
@@ -227,6 +218,9 @@ void QuickSortTask::ComputeGPU(cl_context Context, cl_command_queue CommandQueue
 
 	V_RETURN_CL(clEnqueueReadBuffer(CommandQueue, m_dOutput, CL_TRUE, 0, m_Size * sizeof(cl_int), m_hGPUResult, 0, NULL, NULL),
 		"3Error reading data from device!");
+
+	timer.Stop();
+	cout << "GPU time: " << timer.GetElapsedMilliseconds() << "ms" << endl;
 }
 
 int cmpfunc(const void * a, const void * b)
@@ -236,7 +230,11 @@ int cmpfunc(const void * a, const void * b)
 
 void QuickSortTask::ComputeCPU()
 {
+	CTimer timer;
+	timer.Start();
 	qsort(m_hOutput, m_Size, sizeof(int), cmpfunc);
+	timer.Stop();
+	cout << "CPU time: " << timer.GetElapsedMilliseconds() << "ms" << endl;
 }
 
 bool QuickSortTask::ValidateResults()

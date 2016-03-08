@@ -56,7 +56,7 @@ protected:
 	int				    *m_hInput, *m_hOutput;
 
 	//pointers on the GPU
-	cl_mem				m_dInput, m_dOutput, m_dLeftCount, m_dRightCount;
+	cl_mem				m_dInput, m_dOutput, m_dLeftCount, m_dRightCount, m_dScanPing, m_dScanPong;
 	//(..and a pointer to read back the result)
 	int 				*m_hGPUResult;
 
