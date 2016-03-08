@@ -33,9 +33,11 @@ public:
 	
 	virtual void ReleaseResources();
 
-	void Kernel1(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3], size_t startIndex, size_t count);
+	void CountElements(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3], size_t startIndex, size_t count, size_t pivotIndex);
 
 	void Scan(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3], size_t count, cl_mem & input);
+
+	void DistributeElements(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3], size_t startIndex, size_t count, size_t pivotIndex);
 
 	void Recurse(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3], size_t startIndex, size_t count);
 
@@ -61,8 +63,8 @@ protected:
 	//OpenCL program and kernels
 	cl_program			m_Program;
 	cl_kernel			m_KernelScan;
-	cl_kernel			m_Kernel1;
-	cl_kernel			m_Kernel2;
+	cl_kernel			m_KernelCountElements;
+	cl_kernel			m_KernelDistributeElements;
 };
 
 #endif // _CMATRIX_ROTATE_TASK_H

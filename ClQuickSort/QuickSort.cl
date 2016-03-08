@@ -12,18 +12,7 @@
 #define printf
 #endif
 
-// Bank conflicts
-//#define AVOID_BANK_CONFLICTS
-#ifdef AVOID_BANK_CONFLICTS
-// TO DO: define your conflict-free macro here
-#define MAPPED_INDEX(index) ((index) + ((index) / (NUM_BANKS)))
-// Alternative macro which seems to be slower at least on Intel GPUs
-//#define MAPPED_INDEX(index) ((index) + ((index) >> NUM_BANKS + (index) >> (2 * NUM_BANKS_LOG)))
-#else
-#define MAPPED_INDEX(index) (index)
-#endif
-
-__kernel void QuickSort1(__global const int* input, __global int* output,
+__kernel void CountElements(__global const int* input,
 	__const int startIndex, __const int count, __const int pivotIndexIn,
 	__global int* leftCount, __global int* rightCount)
 {
@@ -76,4 +65,58 @@ __kernel void Scan_Naive(const __global int* inArray, __global int* outArray, in
 		outArray[GID] = inArray[GID] + inArray[GID - offset];
 	}
 	//printf("%i: %i\n", GID, outArray[GID]);
+}
+
+__kernel void DistributeElements(__global const int* input, __global int* output,
+	__const int startIndex, __const int count, __global int* leftCountPrefix,
+	__global int* rightCountPrefix, __const int pivotIndexIn)
+{
+	__local int leftIndex;
+	__local int rightIndex;
+
+	int gid = get_global_id(0);
+	int lid = get_local_id(0);
+	int grid = get_group_id(0);
+	int nGroups = count / (get_local_size(0)) + (count % (get_local_size(0)) > 0);
+
+	if (gid >= count)
+		return;
+
+	if (lid == 0) 
+	{
+		leftIndex = 0;
+		rightIndex = 0;
+		printf("Pivot: %i\n", input[pivotIndexIn]);
+	}
+
+	barrier(CLK_LOCAL_MEM_FENCE);
+
+	int pivot = input[pivotIndexIn];
+	int element = input[startIndex + gid];
+	
+	int newElementIndex = -1;
+
+	if (element < pivot)
+	{
+		newElementIndex = atomic_inc(&leftIndex);
+		newElementIndex += grid == 0 ? 0 : leftCountPrefix[grid - 1];
+	}
+	else if (element > pivot)
+	{
+		newElementIndex = atomic_inc(&rightIndex);
+		newElementIndex += grid == 0 ? 0 : rightCountPrefix[grid - 1];
+		newElementIndex += count - rightCountPrefix[nGroups - 1];
+	}
+
+	if (newElementIndex >= 0) 
+	{
+		output[startIndex + newElementIndex] = element;
+		//printf("Gid %i reads from %i value %i, writes to %i\n", gid, startIndex + gid, element, startIndex + newElementIndex);
+	}
+
+	int pivotCount = count - rightCountPrefix[nGroups - 1] - leftCountPrefix[nGroups - 1];
+	if (gid < pivotCount) 
+	{
+		output[startIndex + leftCountPrefix[nGroups - 1] + gid] = pivot;
+	}
 }
