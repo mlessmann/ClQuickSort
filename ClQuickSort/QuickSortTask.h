@@ -33,6 +33,8 @@ public:
 	
 	virtual void ReleaseResources();
 
+	void Kernel1(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3], size_t startIndex, size_t count);
+
 	void Scan(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3], size_t count, cl_mem & input);
 
 	void Recurse(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3], size_t startIndex, size_t count);

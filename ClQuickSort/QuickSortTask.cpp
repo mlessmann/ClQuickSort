@@ -87,6 +87,27 @@ void QuickSortTask::ReleaseResources()
     SAFE_RELEASE_PROGRAM(m_Program);
 }
 
+void QuickSortTask::Kernel1(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3],
+	size_t startIndex, size_t count)
+{
+	cl_int clErr;
+	size_t globalWorkSize = CLUtil::GetGlobalWorkSize(count, LocalWorkSize[0]);
+
+	int pivotIndex = startIndex + (rand() % count);
+
+	clErr = clSetKernelArg(m_Kernel1, 0, sizeof(cl_mem), (void*)&m_dInput);
+	clErr |= clSetKernelArg(m_Kernel1, 1, sizeof(cl_mem), (void*)&m_dOutput);
+	clErr |= clSetKernelArg(m_Kernel1, 2, sizeof(cl_int), (void*)&startIndex);
+	clErr |= clSetKernelArg(m_Kernel1, 3, sizeof(cl_int), (void*)&count);
+	clErr |= clSetKernelArg(m_Kernel1, 4, sizeof(cl_int), (void*)&pivotIndex);
+	clErr |= clSetKernelArg(m_Kernel1, 5, sizeof(cl_mem), (void*)&m_dLeftCount);
+	clErr |= clSetKernelArg(m_Kernel1, 6, sizeof(cl_mem), (void*)&m_dRightCount);
+	V_RETURN_CL(clErr, "Failed to set kernel args for Kernel1.");
+
+	clErr = clEnqueueNDRangeKernel(CommandQueue, m_Kernel1, 1, NULL, &globalWorkSize, LocalWorkSize, 0, NULL, NULL);
+	V_RETURN_CL(clErr, "Failed to start Kernel1.");
+}
+
 void QuickSortTask::Scan(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3],
 	size_t count, cl_mem &input)
 {
@@ -117,33 +138,20 @@ void QuickSortTask::Scan(cl_context Context, cl_command_queue CommandQueue, size
 void QuickSortTask::Recurse(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3],
 	size_t startIndex, size_t count)
 {
-	cl_int clErr;
-	size_t globalWorkSize = CLUtil::GetGlobalWorkSize(count, LocalWorkSize[0]);
-
-	int pivotIndex = startIndex + (rand() % count);
-
-	clErr = clSetKernelArg(m_Kernel1, 0, sizeof(cl_mem), (void*)&m_dInput);
-	clErr |= clSetKernelArg(m_Kernel1, 1, sizeof(cl_mem), (void*)&m_dOutput);
-	clErr |= clSetKernelArg(m_Kernel1, 2, sizeof(cl_int), (void*)&startIndex);
-	clErr |= clSetKernelArg(m_Kernel1, 3, sizeof(cl_int), (void*)&count);
-	clErr |= clSetKernelArg(m_Kernel1, 4, sizeof(cl_int), (void*)&pivotIndex);
-	clErr |= clSetKernelArg(m_Kernel1, 5, sizeof(cl_mem), (void*)&m_dLeftCount);
-	clErr |= clSetKernelArg(m_Kernel1, 6, sizeof(cl_mem), (void*)&m_dRightCount);
-	V_RETURN_CL(clErr, "Failed to set kernel args for Kernel1.");
-
-	clErr = clEnqueueNDRangeKernel(CommandQueue, m_Kernel1, 1, NULL, &globalWorkSize, LocalWorkSize, 0, NULL, NULL);
-	V_RETURN_CL(clErr, "Failed to start Kernel1.");
-
+	//calculate leftCount/rightCount per block
+	Kernel1(Context, CommandQueue, LocalWorkSize, startIndex, count);
+	//calculate prefix sums of leftCount/rightCount (in place)
 	Scan(Context, CommandQueue, LocalWorkSize, count, m_dLeftCount);
+	Scan(Context, CommandQueue, LocalWorkSize, count, m_dRightCount);
 
-	size_t groupCount = GetGroupCount(count, LocalWorkSize[0]);
+	/*size_t groupCount = GetGroupCount(count, LocalWorkSize[0]);
 	int* test = new int[groupCount];
 	V_RETURN_CL(clEnqueueReadBuffer(CommandQueue, m_dLeftCount, CL_TRUE, 0, groupCount * sizeof(cl_int), test, 0, NULL, NULL),
 		"Error reading data from device!");
 	for (int j = 0; j < groupCount; j++) {
 		cout << test[j] << " ";
 	}
-	cout << endl;
+	cout << endl;*/
 
 	//start kernel 2
 	//read pivot index
