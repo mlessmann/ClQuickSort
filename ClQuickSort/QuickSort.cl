@@ -1,17 +1,3 @@
-﻿#ifdef _WIN32
-#define __kernel
-#define __global
-#define __const
-#define __local
-#define get_global_id
-#define get_local_id
-#define get_group_id
-#define get_local_size
-#define atomic_inc
-#define barrier(CLK_LOCAL_MEM_FENCE)
-#define printf
-#endif
-
 __kernel void CountElements(__global const int* input,
 	__const int startIndex, __const int count, __const int pivotIndexIn,
 	__global int* leftCount, __global int* rightCount)
