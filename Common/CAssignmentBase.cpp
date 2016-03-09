@@ -162,17 +162,24 @@ bool CAssignmentBase::RunComputeTask(IComputeTask& Task, size_t LocalWorkSize[3]
 		return false;
 	}
 
+	CTimer cpuTimer, gpuTimer;
+
 	// Compute the golden result.
 	cout << "Computing CPU reference result...";
+	cpuTimer.Start();
 	Task.ComputeCPU();
-	cout << "DONE" << endl;
+	cpuTimer.Stop();
+	cout << "DONE in " << cpuTimer.GetElapsedMilliseconds() << "ms" << endl;
 
 	// Running the same task on the GPU.
 	cout << "Computing GPU result...";
 
 	// Runing the kernel N times. This make the measurement of the execution time more accurate.
+	gpuTimer.Start();
 	Task.ComputeGPU(m_CLContext, m_CLCommandQueue, LocalWorkSize);
-	cout << "DONE" << endl;
+	gpuTimer.Stop();
+	cout << "DONE in " << gpuTimer.GetElapsedMilliseconds() << "ms" << endl;
+	cout << "Speedup: " << cpuTimer.GetElapsedMilliseconds() / gpuTimer.GetElapsedMilliseconds() << "x" << endl;
 
 	// Validating results.
 	if (Task.ValidateResults())

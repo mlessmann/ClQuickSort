@@ -6,7 +6,6 @@ GPU Computing / GPGPU Praktikum source code.
 #include "QuickSortTask.h"
 
 #include "../Common/CLUtil.h"
-#include "../Common/CTimer.h"
 #include <cstring>
 
 using namespace std;
@@ -122,7 +121,7 @@ void QuickSortTask::Scan(cl_context Context, cl_command_queue CommandQueue, size
 
 	clEnqueueCopyBuffer(CommandQueue, input, m_dScanPing, 0, 0, sizeof(cl_int) * groupCount, 0, NULL, NULL);
 
-	for (unsigned int offset = 1; offset <= groupCount; offset *= 2)
+	for (int offset = 1; offset <= groupCount; offset *= 2)
 	{
 		size_t globalWorkSize = CLUtil::GetGlobalWorkSize(groupCount, LocalWorkSize[0]);
 
@@ -196,10 +195,7 @@ void QuickSortTask::Recurse(cl_context Context, cl_command_queue CommandQueue, s
 
 void QuickSortTask::ComputeGPU(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3])
 {
-	CTimer timer;
 	cl_int clErr;
-
-	timer.Start();
 
 	size_t groupCount = GetGroupCount(m_Size, LocalWorkSize[0]);
 	m_dLeftCount = clCreateBuffer(Context, CL_MEM_READ_WRITE, sizeof(int) * groupCount, NULL, &clErr);
@@ -218,23 +214,11 @@ void QuickSortTask::ComputeGPU(cl_context Context, cl_command_queue CommandQueue
 
 	V_RETURN_CL(clEnqueueReadBuffer(CommandQueue, m_dOutput, CL_TRUE, 0, m_Size * sizeof(cl_int), m_hGPUResult, 0, NULL, NULL),
 		"3Error reading data from device!");
-
-	timer.Stop();
-	cout << "GPU time: " << timer.GetElapsedMilliseconds() << "ms" << endl;
-}
-
-int cmpfunc(const void * a, const void * b)
-{
-	return (*(int*)a - *(int*)b);
 }
 
 void QuickSortTask::ComputeCPU()
 {
-	CTimer timer;
-	timer.Start();
-	qsort(m_hOutput, m_Size, sizeof(int), cmpfunc);
-	timer.Stop();
-	cout << "CPU time: " << timer.GetElapsedMilliseconds() << "ms" << endl;
+	std::sort(m_hOutput, m_hOutput + m_Size);
 }
 
 bool QuickSortTask::ValidateResults()
