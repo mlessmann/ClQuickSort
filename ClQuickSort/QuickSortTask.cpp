@@ -8,18 +8,17 @@ GPU Computing / GPGPU Praktikum source code.
 #include "../Common/CLUtil.h"
 #include "../Common/CTimer.h"
 
-//#include <string.h>
-
 using namespace std;
 
 ///////////////////////////////////////////////////////////////////////////////
 // QuickSortTask
 
-QuickSortTask::QuickSortTask(size_t size)
+QuickSortTask::QuickSortTask(size_t size, int leftBound, int rightBound)
     :m_Size(size), m_hInput(NULL), m_hOutput(NULL), m_dInput(NULL),
     m_dOutput(NULL), m_hGPUResult(NULL), m_Program(NULL), m_KernelScan(NULL),
 	m_KernelCountElements(NULL), m_KernelDistributeElements(NULL), m_dLeftCount(NULL),
-	m_dRightCount(NULL), m_dScanPing(NULL), m_dScanPong(NULL)
+	m_dRightCount(NULL), m_dScanPing(NULL), m_dScanPong(NULL), m_Rnd(NULL),
+	m_LeftBound(leftBound), m_RightBound(rightBound)
 {
 }
 
@@ -40,10 +39,11 @@ bool QuickSortTask::InitResources(cl_device_id Device, cl_context Context)
     m_hOutput = new int[m_Size];
     m_hGPUResult = new int[m_Size];
 
-    //fill the array with random ints
+	//fill the array with random ints
+	uniform_int_distribution<int> distribution(m_LeftBound, m_RightBound);
     for(unsigned int i = 0; i < m_Size; i++)
     {
-		m_hInput[i] = rand();
+		m_hInput[i] = distribution(m_Rnd);
     }
 	//memset(m_hInput, 0, m_Size * sizeof(int));
 	memcpy(m_hOutput, m_hInput, m_Size * sizeof(int));
@@ -166,7 +166,8 @@ void QuickSortTask::Recurse(cl_context Context, cl_command_queue CommandQueue, s
 		return;
 	}
 
-	int pivotIndex = startIndex + (rand() % count);
+	uniform_int_distribution<int> distribution(startIndex, startIndex + count - 1);
+	int pivotIndex = distribution(m_Rnd);
 	size_t groupCount = GetGroupCount(count, LocalWorkSize[0]);
 
 	//calculate leftCount/rightCount per block

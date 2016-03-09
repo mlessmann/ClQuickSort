@@ -21,11 +21,12 @@
 #define _QUICK_SORT_TASK
 
 #include "../Common/IComputeTask.h"
+#include <random>
 
 class QuickSortTask : public IComputeTask
 {
 public:
-	QuickSortTask(size_t size);
+	QuickSortTask(size_t size, int leftBound, int rightBound);
 	virtual ~QuickSortTask();
 
 	// IComputeTask
@@ -65,6 +66,9 @@ protected:
 	cl_kernel			m_KernelScan;
 	cl_kernel			m_KernelCountElements;
 	cl_kernel			m_KernelDistributeElements;
+
+	int					m_LeftBound, m_RightBound;
+	std::default_random_engine m_Rnd;
 };
 
 #endif // _CMATRIX_ROTATE_TASK_H
