@@ -157,6 +157,7 @@ void QuickSortTask::DistributeElements(cl_context Context, cl_command_queue Comm
 
 	clErr = clEnqueueNDRangeKernel(CommandQueue, m_KernelDistributeElements, 1, NULL, &globalWorkSize, LocalWorkSize, 0, NULL, NULL);
 	V_RETURN_CL(clErr, "Failed to start KernelDistributeElements.");
+	clFinish(CommandQueue);
 }
 
 void QuickSortTask::Recurse(cl_context Context, cl_command_queue CommandQueue, size_t LocalWorkSize[3],
