@@ -42,7 +42,9 @@ We have implemented a parallel version of the Quick Sort algorithm using OpenCL 
 \end{abstract}
 
 \section{Algorithm}
-Since the sequential Quick Sort algorithm is inherently recursive in nature, we used a similar approach for our GPU version. In every recursive call a pivot is selected and the GPU swaps elements such that smaller elements than the pivot are to its left in the array and larger elements are to its right. This is done by computing two prefix sums - one for the lower elements, one for the upper elements. An element adds 1 to the respective prefix sum, if it is lower/higher than the pivot, otherwise 0. As a result the number in the prefix sum array at the position of an element is its target index in the output array. Afterwards we only have to fill the gap between lower and upper numbers with pivots. Pseudocode for this is shown in Algorithm~\ref{alg1}.
+Since the sequential Quick Sort algorithm is inherently recursive in nature, we used a similar approach for our GPU version. In every recursive call a pivot is selected and the GPU swaps elements such that smaller elements than the pivot are to its left in the array and larger elements are to its right. This is done by computing two prefix sums - one for the lower elements, one for the upper elements. An element adds 1 to the respective prefix sum, if it is lower/higher than the pivot, otherwise 0. As a result the number in the prefix sum array at the position of an element is its target index in the output array. Afterwards we only have to fill the gap between lower and upper numbers with pivots.
+
+Pseudocode for this is shown in Algorithm~\ref{alg1}. It is written in SIMD-style such that the function is called on a new thread for every item in the input. The parameter $i$ is the index of the current item. The parameters $offset$ and $count$ describe the bounds of the current recursion; they start at $0$ and input-length respectively.
 
 \begin{algorithm}
 \begin{algorithmic}
@@ -68,8 +70,9 @@ Since the sequential Quick Sort algorithm is inherently recursive in nature, we 
 \If{$i < numberPivots$}
   \State $output[offset + countLeft +i] \gets pivot$
 \EndIf
-\State \Call{QuickSort}{$output, input, offset, countLeft, i$}
-\State \Call{QuickSort}{$output, input, offset + countLeft + countPivot, countRight, i$}
+\State $input \gets output$
+\State \Call{QuickSort}{$input, output, offset, countLeft, i$}
+\State \Call{QuickSort}{$input, output, offset + countLeft + countPivot, countRight, i$}
 \EndFunction
 \end{algorithmic}
 \label{alg1}
