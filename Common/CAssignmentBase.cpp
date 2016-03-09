@@ -44,12 +44,12 @@ CAssignmentBase::~CAssignmentBase()
 	ReleaseCLContext();
 }
 
-bool CAssignmentBase::EnterMainLoop(int, char**)
+bool CAssignmentBase::EnterMainLoop(int argc, char** argv)
 {
 	if(!InitCLContext())
 		return false;
 
-	bool success = DoCompute();
+	bool success = DoCompute(argc, argv);
 
 	ReleaseCLContext();
 

@@ -29,7 +29,7 @@ public:
 	virtual ~QuickSort() {};
 
 	//! This overloaded method contains the specific solution of A1
-	virtual bool DoCompute();
+	virtual bool DoCompute(int argc, char ** argv);
 };
 
 #endif // _CASSIGNMENT1_H

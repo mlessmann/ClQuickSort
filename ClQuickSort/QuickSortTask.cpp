@@ -7,6 +7,7 @@ GPU Computing / GPGPU Praktikum source code.
 
 #include "../Common/CLUtil.h"
 #include "../Common/CTimer.h"
+#include <cstring>
 
 using namespace std;
 
