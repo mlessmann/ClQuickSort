@@ -1,0 +1,96 @@
+\documentclass{llncs}
+
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+
+\newcommand{\doctype}{Parallel Quick Sort in OpenCL}
+
+\usepackage{hyperref}
+\hypersetup{
+  breaklinks=true,
+  colorlinks=true,
+  citecolor=blue,
+  linkcolor=blue,
+  urlcolor=blue,
+  bookmarksnumbered,
+  bookmarksopen,
+  pdftitle={\doctype},
+  pdfauthor={Patrick Bisenius, Manuel Leßmann},
+  pdfsubject={},
+  pdfkeywords={},
+}
+
+% Final Submit TODO: remove following line which makes margins smaller
+\hypersetup{pdfpagescrop={92 62 523 748}}
+
+\usepackage{breakurl}
+
+\title{\doctype}
+\author{Patrick Bisenius, Manuel Leßmann}
+\institute{Karlsruhe Institute of Technology, Karlsruhe, Germany}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+We have implemented a parallel version of the Quick Sort algorithm using OpenCL to be executed on GPUs. Experiments show, that a significant speedup compared to the sequential CPU version is only possible for very large inputs. A combination with a GPU algorithm that performs better for smaller inputs is advisable to maximize speedup.
+\end{abstract}
+
+\section{Algorithm}
+Since the sequential Quick Sort algorithm is inherently recursive in nature, we used a similar approach for our GPU version. In every recursive call a pivot is selected and the GPU swaps elements such that smaller elements than the pivot are to its left in the array and larger elements are to its right. This is done by computing two prefix sums - one for the lower elements, one for the upper elements. An element adds 1 to the respective prefix sum, if it is lower/higher than the pivot, otherwise 0. As a result the number in the prefix sum array at the position of an element is its target index in the output array. Afterwards we only have to fill the gap between lower and upper numbers with pivots. Pseudocode for this is shown in Algorithm~\ref{alg1}.
+
+\begin{algorithm}
+\begin{algorithmic}
+\Function{QuickSort}{$input, output, offset, count, i$}
+\State $pivot \gets$ Choose pivot
+\State $lps \gets$ Left prefix sum array
+\State $rps \gets$ Right prefix sum array
+\If{$input[offset + i] < pivot$}
+  \State $lps[i] \gets 1$
+\ElsIf{$input[offset + i] > pivot$}
+  \State $rps[i] \gets 1$
+\EndIf\\
+\State \Call{PrefixSum}{$lps$}
+\State \Call{PrefixSum}{$rps$}
+\State $countLeft \gets lps[last]$
+\State $countRight \gets rps[last]$
+\State $countPivots \gets count - countLeft - countRight$\\
+\If{$input[offset + i] < pivot$}
+  \State $output[offset + lps[i]] \gets input[offset + i]$
+\ElsIf{$input[offset + i] > pivot$}
+  \State $output[offset + countLeft + countPivots + rps[i]] \gets input[offset + i]$
+\EndIf
+\If{$i < numberPivots$}
+  \State $output[offset + countLeft +i] \gets pivot$
+\EndIf
+\State \Call{QuickSort}{$output, input, offset, countLeft, i$}
+\State \Call{QuickSort}{$output, input, offset + countLeft + countPivot, countRight, i$}
+\EndFunction
+\end{algorithmic}
+\label{alg1}
+\caption{SIMD-pseudocode for the parallel quick sort algorithm on GPUs.}
+\end{algorithm}
+
+\section{Implementation Details}
+
+Details.
+
+\section{Experimental Results}
+
+Your hardware.
+
+What do you benchmark.
+
+Running time and speedup plots (for each generator, 64-bit integer and 32-bit floating point (not for  non-comparative integer sorting algorithms).
+
+Interpretation.
+
+\bibliographystyle{splncs03}
+\bibliography{/home/axtman/promotion/latex/library}
+
+\end{document}
