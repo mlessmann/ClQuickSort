@@ -6,7 +6,7 @@
 \usepackage{algorithm}
 \usepackage{algorithmicx}
 \usepackage{algpseudocode}
-
+\usepackage{booktabs}
 \newcommand{\doctype}{Parallel Quick Sort in OpenCL}
 
 \usepackage{hyperref}
@@ -80,20 +80,54 @@ Pseudocode for this is shown in Algorithm~\ref{alg1}. It is written in SIMD-styl
 \end{algorithm}
 
 \section{Implementation Details}
-
-Details.
+There is no proper way to write templates for OpenCL kernels. Therefore, our algorithm only supports 32-bit integers. Support for floating point numbers and 64-bit integers could be trivially achieved by copying the existing kernels and changing the relevant data types. On top of that, many GPUs only support 64-bit integers by software emulation.
 
 \section{Experimental Results}
 
-Your hardware.
+We benchmarked our algorithm on a machine with an i5-4670, 8GB of RAM and an AMD Radeon R290. We used \texttt{std::uniform\_int\_distribution} to generate a random array of numbers.
 
-What do you benchmark.
+Table~\ref{tbl:input_size} compares the runtime of \texttt{std::sort} and our implementation for different input sizes. Our implementation has a large amount of overhead, especially for small input sizes. However, it scales better than \texttt{std::sort} for larger input sizes because more and more elements in each step are equal to the pivot and are discarded in further recursion steps.
 
-Running time and speedup plots (for each generator, 64-bit integer and 32-bit floating point (not for  non-comparative integer sorting algorithms).
+Table~\ref{tbl:unique_numbers} shows the impact of different amounts of unique numbers for a constant input size of $2^{20}$. With more unique numbers, less and less elements will be equal to the pivot element in each step. This increases the size of the remaining blocks and therefore the number of necessary recursion steps for our algorithm. The last column shows the runtime of our algorithm if the recursion is stopped if the block size is smaller than 1024.
 
-Interpretation.
+We did not achieve a speedup with respect to \texttt{std::sort} for any input size. As shown in Table~\ref{tbl:unique_numbers}, a large percentage of the total runtime is spent in recursion steps with block sizes smaller than 1024 elements. For these small blocks, the overhead for the kernel invocations and copy operations on the OpenCL buffers becomes too large. Since OpenCL kernels are invoked from a command queue and only one kernel is executed at a time, the number of active GPU threads becomes smaller and smaller for each recursion step. This problem could be solved by implementing a second sorting algorithm for small block sizes that uses a single workgroup to sort a small block and sorts multiple small blocks at a time, such as bitonic sort. 
 
-\bibliographystyle{splncs03}
-\bibliography{/home/axtman/promotion/latex/library}
+\begin{table}
+\parbox{.45\linewidth}{
+\centering
+
+\begin{tabular}{@{}lll@{}}
+\toprule
+n         & CPU  & GPU   \\ \midrule
+$2^{20}$    & 73   & 10151 \\
+$2^{21}$    & 140  & 10183 \\
+$2^{22}$   & 284  & 11050 \\
+$2^{23}$    & 548  & 11134 \\
+$2^{24}$  & 1091 & 11093 \\
+$2^{25}$   & 2133 & 11809 \\
+$2^{26}$   & 4263 & 12909 \\
+$2^{27}$ & 8620 & 13764 \\ \bottomrule
+\end{tabular}
+\caption{Runtime in milliseconds of the QuickSort algorithm with $2^{14}$ different numbers.}
+\label{tbl:input_size}
+}
+\hfill
+\parbox{.45\linewidth}{
+\centering
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+\# numbers       & CPU & GPU   & rec. aborted    \\ \midrule
+$2^{14}$   & 74  & 10934 & 393 \\
+$2^{18}$  & 82  & 37087 & 393 \\
+$2^{20}$ & 84  & 76149 & 373 \\ \bottomrule
+\end{tabular}
+\caption{Runtime in milliseconds for $n=2^{20}$ and different amounts of unique numbers. The last column shows the runtime if the recursion is aborted when the block size is smaller than $1024$ to show the impact of the last recursion steps.}
+\label{tbl:unique_numbers}
+}
+\end{table}
+
+
+%\bibliographystyle{splncs03}
+%\bibliography{/home/axtman/promotion/latex/library}
 
 \end{document}
