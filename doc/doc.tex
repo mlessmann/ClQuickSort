@@ -7,6 +7,7 @@
 \usepackage{algorithmicx}
 \usepackage{algpseudocode}
 \usepackage{booktabs}
+\usepackage{url}
 \newcommand{\doctype}{Parallel Quick Sort in OpenCL}
 
 \usepackage{hyperref}
@@ -84,7 +85,7 @@ We ended up implementing inclusive prefix sums to compute the new indices, becau
 
 We also made extensive use of local memory to speed up read and write operations. For instance, in the first step of each recursion we need to compute the number the elements to the left and right of the pivot. This is done by the kernel "CountElements". Every work group counts for themselves and writes its results into a global array. In the next step we use an inclusive prefix sum on these arrays to compute the starting indices for the values of each work group as well as the total number of elements to the left, to the right and equal to the pivot. The last kernel "DistributeElements" then computes for every element its new index using the proper value of the prefix sum and adding a local offset value that gets incremented atomically. As a last step the indices between the left and right groups need to be filled with the pivot value.
 
-In principle our algorithm is the same for 32-bit and 64-bit integers as well as floating point numbers. Copying the kernel and replacing the relevant data types or, more elegantly, C++-Style templates would very easily make the algorithm type-independent. However, there is no proper way to write templates for OpenCL kernels. Therefore, our algorithm only supports 32-bit integers. On top of that, many GPUs only support 64-bit integers by software emulation. This support has not yet made it into the standard OpenCL API and is only accessible through vendor-specific extensions.
+In principle our algorithm is the same for 32-bit and 64-bit integers as well as floating point numbers. Copying the kernel and replacing the relevant data types or, more elegantly, C++-Style templates would very easily make the algorithm type-independent. However, there is no proper way to write templates for OpenCL kernels. Therefore, our algorithm only supports 32-bit integers. On top of that, many GPUs only support 64-bit integers by software emulation. This support has not yet made it into the standard OpenCL API and is only accessible through vendor-specific extensions~\cite{opencl_64bit}.
 
 \section{Experimental Results}
 
@@ -112,7 +113,7 @@ $2^{25}$   & 2133 & 11809 \\
 $2^{26}$   & 4263 & 12909 \\
 $2^{27}$ & 8620 & 13764 \\ \bottomrule
 \end{tabular}
-\caption{Runtime in milliseconds of the QuickSort algorithm with $2^{14}$ different numbers.}
+\caption{Runtime in milliseconds of the Quick Sort algorithm with $2^{14}$ different numbers.}
 \label{tbl:input_size}
 }
 \hfill
@@ -131,7 +132,7 @@ $2^{20}$ & 84  & 76149 & 373 \\ \bottomrule
 \end{table}
 
 
-%\bibliographystyle{splncs03}
-%\bibliography{/home/axtman/promotion/latex/library}
+\bibliographystyle{alpha}
+\bibliography{quicksort}
 
 \end{document}
