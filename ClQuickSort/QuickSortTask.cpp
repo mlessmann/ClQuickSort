@@ -213,7 +213,7 @@ void QuickSortTask::ComputeGPU(cl_context Context, cl_command_queue CommandQueue
 	Recurse(Context, CommandQueue, LocalWorkSize, 0, m_Size);
 
 	V_RETURN_CL(clEnqueueReadBuffer(CommandQueue, m_dOutput, CL_TRUE, 0, m_Size * sizeof(cl_int), m_hGPUResult, 0, NULL, NULL),
-		"3Error reading data from device!");
+		"Error reading data from device!");
 }
 
 void QuickSortTask::ComputeCPU()

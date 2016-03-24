@@ -46,7 +46,7 @@ Since the sequential Quick Sort algorithm is inherently recursive in nature, we 
 
 Pseudocode for this is shown in Algorithm~\ref{alg1}. It is written in SIMD-style such that the function is called on a new thread for every item in the input. The parameter $i$ is the index of the current item. The parameters $offset$ and $count$ describe the bounds of the current recursion; they start at $0$ and input-length respectively.
 
-\begin{algorithm}
+\begin{algorithm}[h]
 \begin{algorithmic}
 \Function{QuickSort}{$input, output, offset, count, i$}
 \State $pivot \gets$ Choose pivot
@@ -80,7 +80,11 @@ Pseudocode for this is shown in Algorithm~\ref{alg1}. It is written in SIMD-styl
 \end{algorithm}
 
 \section{Implementation Details}
-There is no proper way to write templates for OpenCL kernels. Therefore, our algorithm only supports 32-bit integers. Support for floating point numbers and 64-bit integers could be trivially achieved by copying the existing kernels and changing the relevant data types. On top of that, many GPUs only support 64-bit integers by software emulation.
+We ended up implementing inclusive prefix sums to compute the new indices, because we needed to know the total amount of elements left and right of the pivot. This information is missing in an exclusive prefix sum. Therefore the new index for a number is now stored one element lower in the prefix sum result, and we needed an exception for the very first element, which reads from index 0.
+
+We also made extensive use of local memory to speed up read and write operations. For instance, in the first step of each recursion we need to compute the number the elements to the left and right of the pivot. This is done by the kernel "CountElements". Every work group counts for themselves and writes its results into a global array. In the next step we use an inclusive prefix sum on these arrays to compute the starting indices for the values of each work group as well as the total number of elements to the left, to the right and equal to the pivot. The last kernel "DistributeElements" then computes for every element its new index using the proper value of the prefix sum and adding a local offset value that gets incremented atomically. As a last step the indices between the left and right groups need to be filled with the pivot value.
+
+In principle our algorithm is the same for 32-bit and 64-bit integers as well as floating point numbers. Copying the kernel and replacing the relevant data types or, more elegantly, C++-Style templates would very easily make the algorithm type-independent. However, there is no proper way to write templates for OpenCL kernels. Therefore, our algorithm only supports 32-bit integers. On top of that, many GPUs only support 64-bit integers by software emulation. This support has not yet made it into the standard OpenCL API and is only accessible through vendor-specific extensions.
 
 \section{Experimental Results}
 
